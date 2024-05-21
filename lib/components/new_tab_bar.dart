@@ -8,7 +8,7 @@ class MyTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       child: TabBar(
-        isScrollable: true,
+        
         controller: tabController,
         tabs: [
           Tab(

@@ -1,0 +1,921 @@
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/components/components.dart
+import 'dart:math';
+
+String generateOrderId(String str) {
+  // Get the current date and time
+  DateTime now = DateTime.now();
+
+  // Format the date and time components
+  String date = '${now.day.toString().padLeft(2, '0')}${now.month.toString().padLeft(2, '0')}';
+  String time = '${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+
+  // Get the last 4 digits of the mobile number
+  String lastFourDigits = str.substring(max(0, str.length - 4));
+
+  // Construct the order ID
+  String orderId = 'PP$date$time$lastFourDigits';
+
+  return orderId;
+}
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/components/my_sliver_app_bar.dart
+// import 'package:flutter/material.dart';
+
+// class MySliverTabBar extends StatelessWidget {
+//   final Widget child;
+//   final Widget title;
+//   const MySliverTabBar({super.key, required this.child, required this.title});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return SliverAppBar(
+//       expandedHeight: 240,
+//       collapsedHeight: 60,
+//       pinned: true,
+//       floating: true  ,
+//       actions: [
+//         IconButton(
+//           onPressed: () {},
+//           icon: Icon(Icons.shopping_cart),
+//         )
+//       ],
+//       backgroundColor: Colors.deepOrangeAccent,
+//       title: Center(child: const Text("Palate Prestige"),),
+//       flexibleSpace: FlexibleSpaceBar(
+//         background: Padding(
+//           padding: const EdgeInsets.only(bottom: 0),
+//           child: child,
+//         ),
+//         title: title,
+
+//       ),
+//     );
+//   }
+// }
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/components/new_tab_bar.dart
+import 'package:flutter/material.dart';
+
+class MyTabBar extends StatelessWidget {
+  final TabController tabController;
+  const MyTabBar({super.key, required this.tabController});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      child: TabBar(
+        
+        controller: tabController,
+        tabs: [
+          Tab(
+            icon: Icon(Icons.home),
+          ),
+          Tab(
+            icon: Icon(Icons.ac_unit_outlined),
+          ),
+          Tab(
+            icon: Icon(Icons.accessibility),
+          ),
+          Tab(
+            icon: Icon(Icons.account_balance_wallet_rounded),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/components/productItem.dart
+import 'package:flutter/material.dart';
+
+class ProductItem extends StatelessWidget {
+  final String name;
+  final String category;
+  final String price;
+  final String imageUrl;
+  final VoidCallback? onAddToCart;
+
+  const ProductItem({super.key, 
+    required this.name,
+    required this.category,
+    required this.price,
+    required this.imageUrl,
+    this.onAddToCart,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Image.network(imageUrl,height: 150,), // Display image
+        title: Text(name),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Category: $category'),
+            Text('Price: Rs $price'),
+          ],
+        ),
+        trailing: ElevatedButton(
+           onPressed: () {
+            if (onAddToCart != null) {
+              onAddToCart!();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Added to cart'),duration: Duration(seconds: 1),),
+              );
+            }
+          },
+          child: const Text('+'),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/main.dart
+
+import 'package:flutter/material.dart';
+import 'package:palate_prestige/socketIO/socket_test.dart';
+import 'package:provider/provider.dart';
+import 'models/menu.dart';
+import 'pages/pages.dart';
+
+
+void main() async{
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (context) => Menu(),
+      builder: (context, child) => MaterialApp(
+       debugShowCheckedModeBanner: false,
+        home: HomePage(),
+      ), 
+    );
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/methods/getMenu.dart
+import 'dart:convert';
+import 'package:palate_prestige/models/models.dart';
+import 'package:http/http.dart' as http;
+
+Future<List<Category>> fetchCategoriesAndItems() async {
+  var response = await http.get(
+    Uri.parse(
+        'https://afosfr-admin-v6lq.vercel.app/api/category_items'), // Modify the endpoint to fetch both categories and items
+  );
+
+  if (response.statusCode == 200) {
+    var data = jsonDecode(response.body);
+    if (data != null &&
+        data['data'] != null &&
+        data['data']['categories'] != null) {
+      List<dynamic> categoriesData = data['data']['categories'];
+      List<Category> categories = categoriesData.map((categoryData) {
+        return Category(
+          name: categoryData['name'],
+          items: List<Item>.from(categoryData['items'].map((itemData) {
+            return Item(
+              // id: itemData['_id'],
+              foodname: itemData['foodname'],
+              price: itemData['price'],
+              fooding: itemData['fooding'],
+              avlb: itemData['avlb'],
+              foodimg: itemData['foodimg']??"https://img.icons8.com/ios/50/no-image.png",
+            );
+          })),
+        );
+      }).toList();
+      return categories;
+    } else {
+      print('Error: Categories and items data is null or empty');
+      return [];
+    }
+  } else {
+    print('Error fetching categories and items: ${response.statusCode}');
+    return [];
+  }
+}
+
+//  Future<void> fetchCategories() async {
+//     var response = await http.get(
+//       Uri.parse(
+//           'http://localhost:3000/api/product'), // Replace this with your API endpoint
+//     );
+
+//     if (response.statusCode == 200) {
+//       // The request was successful, parse the JSON response
+//       // print(response.body);
+//       var data = jsonDecode(response.body);
+//       List<dynamic> products = data['products'];
+//       // Extract unique category names from the list of products
+//       Set<String> categories =
+//           products.map((product) => product['category'] as String).toSet();
+//       setState(() {
+//         // Update tabTexts with the fetched categories
+//         tabTexts = categories.toList();
+//         // Generate tabs and tabsContent based on fetched categories
+//         tabs = tabTexts.map((text) => Tab(child: Text(text))).toList();
+//         tabsContent = List.generate(tabTexts.length, (index) => []);
+//         // Fetch items for each category
+//         for (int i = 0; i < tabs.length; i++) {
+//           getItemsForTab(i, tabTexts[i]);
+//         }
+//       });
+//     } else {
+//       print('Error fetching categories: ${response.statusCode}');
+//     }
+//   }
+
+//   //get request
+//   Future<void> getItemsForTab(int tabIndex, String category) async {
+//     // Create a GET request to the specified URL
+
+//     var response = await http.get(
+//       Uri.parse('http://localhost:3000/api/product?category=$category'),
+//     );
+
+//     // Check the status code to see if the request was successful
+//     if (response.statusCode == 200) {
+//       // The request was successful, parse the JSON response
+//       var data = jsonDecode(response.body);
+//       // print(data);
+//       setState(() {
+//         tabsContent[tabIndex] = data['products'];
+//       });
+//     } else {
+//       // The request was not successful, handle the error
+//       print('Error: ${response.statusCode}');
+//     }
+//   }
+
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/models/menu.dart
+import 'package:flutter/material.dart';
+import 'package:palate_prestige/models/models.dart';
+
+class CartItem {
+  final Item item;
+  int count;
+
+  CartItem({required this.item, required this.count});
+}
+class Menu extends ChangeNotifier {
+  // user cart
+  List<CartItem> _userCart = [];
+
+  // get user cart
+  List<CartItem> get userCart => _userCart;
+
+  // add to cart
+  void addToCart(Item item) {
+    // Check if the item already exists in the cart
+    int existingIndex =
+        _userCart.indexWhere((cartItem) => cartItem.item == item);
+    if (existingIndex != -1) {
+      // If the item exists, increment its count
+      _userCart[existingIndex].count++;
+    } else {
+      // If the item doesn't exist, add it to the cart
+      _userCart.add(CartItem(item: item, count: 1));
+    }
+    notifyListeners();
+  }
+
+  // delete from cart
+  void deleteFromCart(Item item) {
+    // Check if the item exists in the cart
+    int existingIndex =
+        _userCart.indexWhere((cartItem) => cartItem.item == item);
+    if (existingIndex != -1) {
+      // If the item exists, decrement its count
+      _userCart[existingIndex].count--;
+      // If count reaches zero, remove the item from the cart
+      if (_userCart[existingIndex].count == 0) {
+        _userCart.removeAt(existingIndex);
+      }
+      notifyListeners();
+    }
+  }
+
+  int calculateTotal() {
+    int total = 0;
+    for (var cartItem in userCart) {
+      total += cartItem.count * int.parse(cartItem.item.price);
+    }
+    return total;
+  }
+}
+
+
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/models/models.dart
+class Category {
+  final String name;
+  final List<Item> items;
+
+  Category({
+    required this.name,
+    required this.items,
+  });
+}
+
+class Item {
+  // final String id;
+ String foodname;
+ String price;
+ String fooding;
+ String avlb;
+ String foodimg;
+
+  Item({
+    // required this.id,
+    required this.foodname,
+    required this.price,
+    required this.fooding,
+    required this.avlb,
+    required this.foodimg,
+  });
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Item &&
+          runtimeType == other.runtimeType &&
+          // id == other.id && // Compare unique identifiers
+          foodname == other.foodname &&
+          price == other.price &&
+          fooding == other.fooding &&
+          avlb == other.avlb &&
+          foodimg == other.foodimg;
+
+  @override
+  int get hashCode =>
+      // id.hashCode ^
+      foodname.hashCode ^
+      price.hashCode ^
+      fooding.hashCode ^
+      avlb.hashCode ^
+      foodimg.hashCode;
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/models/orders.dart
+class Order {
+  String orderId;
+  String refId;
+  String name;
+  String contact;
+  List<OrderItem> orders;
+  int amount;
+
+  Order({
+    required this.orderId,
+    required this.refId,
+    required this.name,
+    required this.contact,
+    required this.orders,
+    required this.amount,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'orderId': orderId,
+      'refId': refId,
+      'name': name,
+      'contact': contact,
+      'orders': orders.map((orderItem) => orderItem.toJson()).toList(),
+      'amount': amount,
+    };
+  }
+}
+
+class OrderItem {
+  String itemName;
+  int quantity;
+
+  OrderItem({
+    required this.itemName,
+    required this.quantity,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'itemName': itemName,
+      'quantity': quantity,
+    };
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/pages/cart_page.dart
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:palate_prestige/components/components.dart';
+import 'package:palate_prestige/models/menu.dart';
+import 'package:palate_prestige/models/orders.dart';
+import 'package:palate_prestige/pages/final_page.dart';
+import 'package:palate_prestige/socketIO/socket_methods.dart';
+import 'package:provider/provider.dart';
+
+import '../models/models.dart';
+
+class CartPage extends StatefulWidget {
+  const CartPage({Key? key}) : super(key: key);
+
+  @override
+  State<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<CartPage> {
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _phoneFieldKey = GlobalKey<FormFieldState>();
+  final _nameFieldKey = GlobalKey<FormFieldState>();
+  final SocketMethods _socketMethods = SocketMethods();
+  
+  @override
+  Widget build(BuildContext context) {
+    final menu = Provider.of<Menu>(context);
+
+    return Consumer<Menu>(
+      builder: (context, value, child) => SafeArea(
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text("Cart"),
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back),
+              onPressed: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: TextFormField(
+                  key: _nameFieldKey,
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    border: OutlineInputBorder(),
+                  ),
+                  // Add any validation or controller as needed
+                  controller: _nameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    return null; // Return null if the input is valid
+                  },
+                ),
+              ),
+              // Text field for phone details
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  children: [
+                    // Text box for country code
+                    Container(
+                      width: 60,
+                      height: 66,
+                      decoration: BoxDecoration(
+                        border: Border.all(), // Add border to the container
+                      ),
+                      child: Center(
+                        child: Text(
+                          '+91',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(
+                        width: 10), // Add some space between the text fields
+                    // Text field for phone number
+                    Expanded(
+                      child: TextFormField(
+                        key: _phoneFieldKey,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Phone',
+                          border: OutlineInputBorder(),
+                        ),
+                        // Add any validation or controller as needed
+                        controller: _phoneController,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please Enter A Valid Mobile Number';
+                          }
+                          if (value.length != 10) {
+                            return 'Please Enter A Valid Mobile Number';
+                          }
+                          return null; // Return null if the input is valid
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: menu.userCart.isEmpty
+                    ? Center(
+                        child: Text('Your cart is empty...'),
+                      )
+                    : ListView.builder(
+                        itemCount: menu.userCart.length,
+                        itemBuilder: (context, index) {
+                          // Get the list of entries from the userCart map
+                          CartItem cartItem = menu.userCart[index];
+
+                          // Extract the item and its count from the cart item
+                          Item item = cartItem.item;
+                          int count = cartItem.count;
+
+                          // Build a widget to display the item and its count
+                          return ListTile(
+                            title: Text('${item.foodname} (x$count)'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text('Rs${count * double.parse(item.price)}'),
+                                SizedBox(width: 10),
+                                IconButton(
+                                  icon: Icon(Icons.delete),
+                                  onPressed: () {
+                                    setState(() {
+                                      menu.deleteFromCart(item);
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                            // Add any other UI components as needed
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total:',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    Text(
+                      'Rs${menu.calculateTotal()}',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_phoneFieldKey.currentState!.validate() &&
+                      _nameFieldKey.currentState!.validate()) {
+                    if (_phoneFieldKey.currentState!.validate() &&
+                        _nameFieldKey.currentState!.validate()) {
+                      List<OrderItem> orderItems =
+                          menu.userCart.map((cartItem) {
+                        return OrderItem(
+                          itemName: cartItem.item.foodname,
+                          quantity: cartItem.count,
+                        );
+                      }).toList();
+                      // Create an instance of Order
+                      Order order = Order(
+                        orderId: generateOrderId(_phoneController.text),
+                        refId: 'CASH',
+                        name: _nameController.text,
+                        contact: _phoneController.text,
+                        orders: orderItems,
+                        amount: menu.calculateTotal(),
+                      );
+
+                      // Convert Order instance to JSON format
+                      Map<String, dynamic> orderJson = order.toJson();
+                      _socketMethods.newOrder(orderJson);
+
+
+                      print('Sending data to server: $orderJson');
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => FinalPage()),
+                      );
+                    }
+                  }
+                }, // Add your onPressed function here
+                child: Text('Proceed to Checkout'),
+              ),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/pages/final_page.dart
+import 'package:flutter/material.dart';
+
+class FinalPage extends StatelessWidget {
+  const FinalPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(child: Text('Thanks for ordering!')),
+    );
+  }
+}
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/pages/home_page.dart
+import 'package:flutter/material.dart';
+import 'package:palate_prestige/components/productItem.dart';
+import 'package:palate_prestige/models/menu.dart';
+import 'package:palate_prestige/methods/getMenu.dart';
+import 'package:provider/provider.dart';
+
+import '../models/models.dart';
+import 'cart_page.dart';
+
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late List<String> tabTexts = [];
+  late List<Tab> tabs = [];
+  late List<List<dynamic>> tabsContent = [];
+  List<Category> categories = [];
+
+  void addToCart(Item item) {
+    Provider.of<Menu>(context, listen: false).addToCart(item);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    tabs = [];
+    tabTexts = [];
+
+    // Call the function to fetch categories from the API
+    // fetchCategories();
+    fetchData();
+  }
+
+  void fetchData() async {
+    List<Category> categories = await fetchCategoriesAndItems();
+    categories.forEach((category) {
+      print('Category: ${category.name}');
+      category.items.forEach((item) {
+        print(
+            'Item Name: ${item.foodname}, Price: ${item.price},Image: ${item.foodimg}');
+        // Use item properties as needed
+      });
+    });
+    setState(() {
+      // Update tabTexts with category names
+      tabTexts = categories.map((category) => category.name).toList();
+
+      // Generate tabs based on tabTexts
+      tabs = tabTexts.map((text) => Tab(child: Text(text))).toList();
+
+      // Initialize tabsContent with empty lists
+      tabsContent = List.generate(tabTexts.length, (index) => []);
+
+      // Fetch items for each category
+      for (int i = 0; i < categories.length; i++) {
+        Category category = categories[i];
+        List<dynamic> items = category.items
+            .map((item) => {
+                  'foodname': item.foodname,
+                  'category': category.name,
+                  'price': item.price,
+                  'foodimg': item.foodimg,
+                  'avlb': item.avlb,
+                  'fooding': item.fooding
+                })
+            .toList();
+        tabsContent[i] = items;
+      }
+    });
+  }
+
+  // Function to fetch categories from the API
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<Menu>(
+      builder: (context, value, child) => SafeArea(child: DefaultTabController(
+        length: tabs.length,
+        child: Scaffold(
+            appBar: AppBar(
+              title: Text("Palate Prestige"),
+              backgroundColor: Colors.grey[200],
+              centerTitle: true,
+            ),
+            body: Column(
+              children: [
+                SizedBox(
+                  height: 10,
+                ),
+                TabBar(
+                  indicatorColor: Color.fromARGB(255, 22, 157, 172),
+                  isScrollable: true,
+                  tabs: tabs,
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: List.generate(
+                      tabsContent.length,
+                      (index) {
+                        return ListView.builder(
+                          itemCount: tabsContent[index].length,
+                          itemBuilder: (context, itemIndex) {
+                            return ProductItem(
+                              name: tabsContent[index][itemIndex]['foodname'],
+                              category: tabsContent[index][itemIndex]['category'],
+                              price: tabsContent[index][itemIndex]['price'],
+                              imageUrl:
+                                  tabsContent[index][itemIndex]['foodimg'] ?? "",
+                              onAddToCart: () => addToCart(
+                                Item(
+                                  foodname: tabsContent[index][itemIndex]
+                                      ['foodname'],
+                                  price: tabsContent[index][itemIndex]['price'],
+                                  foodimg: tabsContent[index][itemIndex]
+                                          ['foodimg'],
+                                  avlb: tabsContent[index][itemIndex]['avlb'],
+                                  fooding: tabsContent[index][itemIndex]
+                                      ['fooding'],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            //route to cart page
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => CartPage()),
+                );
+              },
+              child: Icon(Icons.shopping_cart),
+            )),
+      ),)
+    );
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/pages/pages.dart
+export 'home_page.dart';
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/socketIO/socket_client.dart
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+class SocketClient {
+  IO.Socket? socket;
+  static SocketClient? _instance;
+
+  SocketClient._internal() {
+    socket = IO.io('https://afosfr-server.onrender.com/', <String, dynamic>{
+      'transports': ['websocket'],
+      'autoConnect': false,
+    });
+    socket!.connect();
+  }
+
+  static SocketClient get instance {
+    _instance ??= SocketClient._internal();
+    return _instance!;
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/socketIO/socket_methods.dart
+import 'package:palate_prestige/socketIO/socket_client.dart';
+
+class SocketMethods {
+  final _socketClient = SocketClient.instance.socket!;
+
+  void sendMessage(String message, String name) {
+    _socketClient.emit('sendMessage', {'message': message, 'namee': name});
+  }
+
+
+  void newOrder(Map<String, dynamic> orderJson) {
+    _socketClient.emit('newOrder', orderJson);
+
+     //When an event recieved from server, data is added to the stream
+    _socketClient.on('fetchOrder', (data) =>{
+      print(data)
+    });
+    
+
+  }
+
+  void fetchData() {
+    _socketClient.on('fetchOrder', (data) {
+      print(data);
+    });
+  }
+}
+
+
+
+File: /mnt/c/Users/jaina/OneDrive/Desktop/minorProject/palate_prestige/lib/socketIO/socket_test.dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:palate_prestige/socketIO/socket_methods.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+
+class SocketPage extends StatefulWidget {
+  @override
+  _SocketTestState createState() => _SocketTestState();
+}
+
+class _SocketTestState extends State<SocketPage> {
+  
+
+  final SocketMethods _socketMethods = SocketMethods();
+  
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('WebSocket Example'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: (()=> _socketMethods.sendMessage("Hey there", "aditya" ) ),
+          child: Text('Send Data'),
+        ),
+      ),
+    );
+  }
+
+  
+
+  // ... (rest of your widget code)
+}
+
+
+

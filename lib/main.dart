@@ -1,5 +1,8 @@
 
 import 'package:flutter/material.dart';
+import 'package:palate_prestige/socketIO/socket_test.dart';
+import 'package:provider/provider.dart';
+import 'models/menu.dart';
 import 'pages/pages.dart';
 
 
@@ -13,15 +16,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-       
-        
-        useMaterial3: true,
-      ),
-      home: const HomePage(),
+    return ChangeNotifierProvider(
+      create: (context) => Menu(),
+      builder: (context, child) => MaterialApp(
+       debugShowCheckedModeBanner: false,
+        home: HomePage(),
+      ), 
     );
   }
 }
